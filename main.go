@@ -2,6 +2,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"log"
@@ -66,7 +67,11 @@ func main() {
 	})
 	m.Get("dl/:fname", func(ctx *macaron.Context) {
 		fname := ctx.Params("fname")
-		u := ctx.Query("url")
+		b, err := base64.StdEncoding.DecodeString(ctx.Query("url"))
+		if err != nil {
+			log.Panic(err)
+		}
+		u := string(b)
 		clen := ctx.Query("clen")
 		log.Println(u, clen)
 		resp, err := http.Get(u)
