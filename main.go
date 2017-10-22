@@ -15,10 +15,9 @@ import (
 )
 
 type Video struct {
-	ID        string
-	Title     string
-	Thumbnail string
-	Formats   []Format
+	ID      string
+	Title   string
+	Formats []Format
 }
 type Format struct {
 	Itag int
@@ -37,6 +36,15 @@ func main() {
 	m := macaron.Classic()
 	m.Use(macaron.Static("html"))
 	m.Use(macaron.Renderer(macaron.RenderOptions{IndentJSON: true}))
+	m.Get("/video/:id.jpg", func(ctx *macaron.Context) {
+		id := ctx.Params("id")
+		uri := fmt.Sprintf("http://img.youtube.com/vi/%s/default.jpg", id)
+		resp, err := http.Get(uri)
+		if err != nil {
+			log.Panic(err)
+		}
+		io.Copy(ctx, resp.Body)
+	})
 	m.Get("/video/:id", func(ctx *macaron.Context) {
 		id := ctx.Params("id")
 		log.Println(id)
@@ -48,10 +56,9 @@ func main() {
 			Filter(ytdl.FormatExtensionKey, []interface{}{"mp4"}).
 			Filter(ytdl.FormatAudioEncodingKey, []interface{}{""})
 		out := Video{
-			ID:        id,
-			Title:     info.Title,
-			Thumbnail: info.GetThumbnailURL(ytdl.ThumbnailQualityDefault).String(),
-			Formats:   make([]Format, len(formats)),
+			ID:      id,
+			Title:   info.Title,
+			Formats: make([]Format, len(formats)),
 		}
 		for i := range formats {
 			out.Formats[i] = Format{

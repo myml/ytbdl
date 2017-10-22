@@ -30,8 +30,8 @@ var root=new Vue({
         for(var i in this.videos){
             var v=this.videos[i]
             var f=v.Formats[v.select]
-            var url="video/"+v.ID+"/format/"+f.Itag
-            console.log(url)
+            var url=location.href+"video/"+v.ID+"/format/"+f.Itag
+            window.open(url)
         }
       }
     },
