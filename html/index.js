@@ -19,7 +19,7 @@ var root=new Vue({
         console.log(this.videos)
         for(let v of this.videos){
             let f=v.Formats[v.select]
-            let url=`${location.href}dl/${encodeURIComponent(v.Title)}_${f.Res}.${f.Ext}?clen=${f.Clen}&url=${btoa(f.Url)}`
+            let url=`${location.href}dl/?fname=${encodeURIComponent(v.Title)}_${f.Res}.${f.Ext}&clen=${f.Clen}&url=${btoa(f.Url)}`
             window.open(url)
             console.log(url)
         }
