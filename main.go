@@ -8,28 +8,31 @@ import (
 	"log"
 	"net/http"
 
+	"golang.org/x/net/proxy"
+
 	"github.com/go-macaron/macaron"
 	"github.com/otium/ytdl"
 )
 
 type Video struct {
+	ID        string
 	Title     string
 	Thumbnail string
 	Formats   []Format
 }
 type Format struct {
+	Itag int
 	Res  string
 	Ext  string
-	Url  string
 	Clen string
 }
 
 func main() {
-	//	dialer, err := proxy.SOCKS5("tcp", "127.0.0.1:7070", nil, proxy.Direct)
-	//	if err != nil {
-	//		log.Panic(err)
-	//	}
-	//	http.DefaultClient.Transport = &http.Transport{Dial: dialer.Dial}
+	dialer, err := proxy.SOCKS5("tcp", "127.0.0.1:7070", nil, proxy.Direct)
+	if err != nil {
+		log.Panic(err)
+	}
+	http.DefaultClient.Transport = &http.Transport{Dial: dialer.Dial}
 
 	m := macaron.Classic()
 	m.Use(macaron.Static("html"))
@@ -45,25 +48,55 @@ func main() {
 			Filter(ytdl.FormatExtensionKey, []interface{}{"mp4"}).
 			Filter(ytdl.FormatAudioEncodingKey, []interface{}{""})
 		out := Video{
+			ID:        id,
 			Title:     info.Title,
 			Thumbnail: info.GetThumbnailURL(ytdl.ThumbnailQualityDefault).String(),
 			Formats:   make([]Format, len(formats)),
 		}
 		for i := range formats {
 			out.Formats[i] = Format{
-				Res: formats[i].Resolution,
-				Ext: formats[i].Extension,
-				Url: func() string {
-					u, err := info.GetDownloadURL(formats[i])
-					if err != nil {
-						log.Panic(err)
-					}
-					return u.String()
-				}(),
+				Itag: formats[i].Itag,
+				Res:  formats[i].Resolution,
+				Ext:  formats[i].Extension,
 				Clen: formats[i].ValueForKey("clen").(string),
 			}
 		}
 		ctx.JSON(200, out)
+	})
+	m.Get("/video/:id/format/:itag", func(ctx *macaron.Context) {
+		id := ctx.Params("id")
+		itag := ctx.ParamsInt("itag")
+		log.Println(id, itag)
+		info, err := ytdl.GetVideoInfoFromID(id)
+		if err != nil {
+			log.Panic(err)
+		}
+		for i := range info.Formats {
+			if info.Formats[i].Itag == itag {
+				ctx.Header().Set(
+					"Content-type",
+					"application/octet-stream")
+
+				ctx.Header().Set(
+					"Content-Length",
+					info.Formats[i].ValueForKey("clen").(string))
+
+				fname := fmt.Sprintf(
+					"%s_%s.%s",
+					info.Title,
+					info.Formats[i].Resolution,
+					info.Formats[i].Extension)
+				log.Println(fname)
+				ctx.Header().Set(
+					"Content-Disposition",
+					fmt.Sprintf("attachment; filename=%s", fname))
+
+				err = info.Download(info.Formats[i], ctx)
+				if err != nil {
+					log.Panic(err)
+				}
+			}
+		}
 	})
 	m.Get("dl", func(ctx *macaron.Context) {
 		fname := ctx.Query("fname")

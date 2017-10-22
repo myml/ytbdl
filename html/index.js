@@ -5,30 +5,41 @@ var root=new Vue({
         videos:[],
     },
     methods:{
-      change(e){
+      change:function(e){
+          var urls=$(e.target).val()
+          var k="watch?v="
+          this.ids=urls
+              .split("\n")
+              .map( function (u) {return u.substring(u.indexOf(k)+k.length)})
+              .filter(function (u) {return u.length>0})
+          console.log(urls)
           this.videos=[]
-          this.ids=$(e.target).val().split("\n").map((u)=>u.substr(u.indexOf("v=")+2)).filter((u)=>u.length>0)
-          for(let id of this.ids){
-              $.get("video/"+id,function (res) {
-                  res.select=0
+          for(var i in this.ids){
+              $.get("video/"+this.ids[i],function (res) {
+                  if(res["Formats"][0].Res=="1080p"){
+                      res.select=1
+                  }else{
+                      res.select=0
+                  }
                   root.videos.push(res)
               })
           }
       },
-      down(){
+      down:function(){
         console.log(this.videos)
-        for(let v of this.videos){
-            let f=v.Formats[v.select]
-            let url=`${location.href}dl/?fname=${encodeURIComponent(v.Title)}_${f.Res}.${f.Ext}&clen=${f.Clen}&url=${btoa(f.Url)}`
-            window.open(url)
+        for(var i in this.videos){
+            var v=this.videos[i]
+            var f=v.Formats[v.select]
+            var url="video/"+v.ID+"/format/"+f.Itag
             console.log(url)
         }
       }
     },
     computed:{
         count:function () {
-            let c=0
-            for(let v of this.videos){
+            var c=0
+            for(var i in this.videos){
+                var v=this.videos[i]
                 c+=parseInt(v.Formats[v.select].Clen)
             }
             return parseInt(c/1024/1024)
