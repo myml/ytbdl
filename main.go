@@ -8,8 +8,6 @@ import (
 	"log"
 	"net/http"
 
-	"golang.org/x/net/proxy"
-
 	"github.com/go-macaron/macaron"
 	"github.com/otium/ytdl"
 )
@@ -27,11 +25,11 @@ type Format struct {
 }
 
 func main() {
-	dialer, err := proxy.SOCKS5("tcp", "127.0.0.1:7070", nil, proxy.Direct)
-	if err != nil {
-		log.Panic(err)
-	}
-	http.DefaultClient.Transport = &http.Transport{Dial: dialer.Dial}
+	//	dialer, err := proxy.SOCKS5("tcp", "127.0.0.1:7070", nil, proxy.Direct)
+	//	if err != nil {
+	//		log.Panic(err)
+	//	}
+	//	http.DefaultClient.Transport = &http.Transport{Dial: dialer.Dial}
 
 	m := macaron.Classic()
 	m.Use(macaron.Static("html"))
