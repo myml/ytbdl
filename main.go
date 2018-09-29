@@ -2,11 +2,12 @@
 package main
 
 import (
-	"encoding/base64"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+
+	"golang.org/x/net/proxy"
 
 	"github.com/go-macaron/macaron"
 	"github.com/otium/ytdl"
@@ -25,11 +26,11 @@ type Format struct {
 }
 
 func main() {
-	//	dialer, err := proxy.SOCKS5("tcp", "127.0.0.1:7070", nil, proxy.Direct)
-	//	if err != nil {
-	//		log.Panic(err)
-	//	}
-	//	http.DefaultClient.Transport = &http.Transport{Dial: dialer.Dial}
+	dialer, err := proxy.SOCKS5("tcp", "127.0.0.1:7070", nil, proxy.Direct)
+	if err != nil {
+		log.Panic(err)
+	}
+	http.DefaultClient.Transport = &http.Transport{Dial: dialer.Dial}
 
 	m := macaron.Classic()
 	m.Use(macaron.Static("html"))
@@ -78,48 +79,25 @@ func main() {
 		}
 		for i := range info.Formats {
 			if info.Formats[i].Itag == itag {
-				ctx.Header().Set(
-					"Content-type",
-					"application/octet-stream")
-
-				ctx.Header().Set(
-					"Content-Length",
-					info.Formats[i].ValueForKey("clen").(string))
-
-				fname := fmt.Sprintf(
-					"%s_%s.%s",
-					info.Title,
+				ctx.Header().Set("Content-type", "application/octet-stream")
+				fname := fmt.Sprintf("%s_%s.%s", info.Title,
 					info.Formats[i].Resolution,
 					info.Formats[i].Extension)
-				log.Println(fname)
-				ctx.Header().Set(
-					"Content-Disposition",
-					fmt.Sprintf("attachment; filename=%s", fname))
+				ctx.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, fname))
 
-				err = info.Download(info.Formats[i], ctx)
+				uri, err := info.GetDownloadURL(info.Formats[i])
 				if err != nil {
 					log.Panic(err)
 				}
+				resp, err := http.Get(uri.String())
+				if err != nil {
+					log.Panic(err)
+				}
+				defer resp.Body.Close()
+				ctx.Header().Set("Content-Length", fmt.Sprint(resp.ContentLength))
+				log.Println(io.Copy(ctx.Resp, resp.Body))
 			}
 		}
-	})
-	m.Get("dl", func(ctx *macaron.Context) {
-		fname := ctx.Query("fname")
-		b, err := base64.StdEncoding.DecodeString(ctx.Query("url"))
-		if err != nil {
-			log.Panic(err)
-		}
-		u := string(b)
-		clen := ctx.Query("clen")
-		log.Println(u, clen)
-		resp, err := http.Get(u)
-		if err != nil {
-			log.Panic(err)
-		}
-		ctx.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", fname))
-		ctx.Header().Set("Content-type", "application/octet-stream")
-		ctx.Header().Set("Content-Length", clen)
-		log.Println(io.Copy(ctx, resp.Body))
 	})
 	m.Run(4444)
 }
